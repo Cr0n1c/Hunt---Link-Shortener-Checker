@@ -50,7 +50,7 @@
      #Getting effective_url
      try:    data['effective_url'] = soup.find_all("dd")[3].get_text().split(u'\xa0')[0].strip()
      except: pass
-     
+
      #Getting redirections
      try:
          for link in soup.find("dd", class_="redirections-list").get_text().split('http')[1:]:
@@ -71,6 +71,10 @@
      try:    data['safe_browsing'] = soup.find("dd", class_="badware-details-unsafe").get_text()
      except: pass
 
+     #Checking for errors
+     try:    data['errors'] = soup.find("dd", class_="error-details").get_text()
+     except: pass
+
      #status checking
      if data['url_status'] == 'Unsafe':
          data['overall_status'] = 'Unsafe'
@@ -89,6 +93,10 @@
              data['overall_status'] = 'Unsafe'
              return data
 
+     if data['error'] is not None:
+         data['overall_status'] = 'Warning, read errors'
+         return data
+
      if data['url_status'] == 'Safe':
          data['overall_status'] = 'Safe'
      else:
@@ -96,11 +104,12 @@
 
      return data
 
-if __name__ == '__main__':
+ if __name__ == '__main__':
      parser = OptionParser(usage="usage: %prog [options]")
      parser.add_option('-i', '--inputfile', dest='infile', action="store", type="string", help='file that contains urls')
      parser.add_option('-o', '--outputfile', dest='outfile', action="store", type="string", help='file to write results to')
      parser.add_option('-t', '--threads', dest='threads', action="store", type="int", help='number of threads to use')
+     parser.add_option('-d', '--display', dest='display', action="store", type="string", help="prints out results. options ['all', 'bad']")
 
      (opts, args) = parser.parse_args()
 
@@ -110,6 +119,10 @@ if __name__ == '__main__':
          exit()
      elif not os.path.isfile(opts.infile):
          print '[!] Input file does not exist'
+         print parser.print_help()
+         exit()
+     elif opts.display and opts.display.lower() not in ['all', 'bad']:
+         print "[!] display statement only supports 'all' or 'bad'"
          print parser.print_help()
          exit()
 
@@ -125,4 +138,12 @@ if __name__ == '__main__':
      for i in results:
          if opts.outfile:
              with open(opts.outfile, 'a') as f: f.write(json.dumps(i) + '\n')
-         else: pprint(i)
+         if opts.display is None:
+             continue
+         elif opts.display.lower()  == 'all':
+             pprint(i)
+             print '+' * 100 + '\n'
+         elif i['overall_status'] == 'Unsafe' and opts.display.lower() == 'bad':
+             pprint(i)
+             print '+' * 100 + '\n'
+
